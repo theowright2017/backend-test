@@ -1,0 +1,78 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+//   url      = env("DATABASE_URL") //* this is now in prisma.config.ts due to Prisma 7?
+}
+
+enum SeatStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  version     Int      @default(1)
+  seats       Seat[]
+  createdAt   DateTime @default(now())
+}
+
+model Seat {
+  id           String        @id @default(uuid())
+  eventId      String
+  event        Event         @relation(fields: [eventId], references: [id])
+  row          String
+  number       Int
+  status       SeatStatus    @default(AVAILABLE)
+  reservations Reservation[]
+  orderItem    OrderItem?
+
+  @@unique([eventId, row, number])
+  @@index([status])
+}
+
+model Reservation {
+  id        String   @id @default(uuid())
+  seatId    String
+  seat      Seat     @relation(fields: [seatId], references: [id])
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  userId         String
+  totalAmount    Decimal     @db.Decimal(10, 2)
+  idempotencyKey String      @unique
+  items          OrderItem[]
+  createdAt      DateTime    @default(now())
+}
+
+model OrderItem {
+  id      String @id @default(uuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+  seatId  String @unique
+  seat    Seat   @relation(fields: [seatId], references: [id])
+}
+
+model Outbox {
+  id          String    @id @default(uuid())
+  type        String
+  payload     Json
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([processedAt])
+}

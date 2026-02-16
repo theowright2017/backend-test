@@ -1,0 +1,40 @@
+{
+  "name": "backend-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node --import tsx --watch src/interface/server.ts",
+    "build": "tsc",
+    "start": "node dist/interface/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theowright2017/backend-test.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/theowright2017/backend-test/issues"
+  },
+  "homepage": "https://github.com/theowright2017/backend-test#readme",
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.4.0",
+    "@prisma/client": "^7.4.0",
+    "bullmq": "^5.69.3",
+    "fastify": "^5.7.4",
+    "ioredis": "^5.9.3",
+    "pg": "^8.18.0",
+    "pino": "^10.3.1",
+    "socket.io": "^4.8.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "@types/pg": "^8.16.0",
+    "prisma": "^7.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
