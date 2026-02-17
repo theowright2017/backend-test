@@ -20,6 +20,16 @@ services:
     ports:
       - "6379:6379"
 
+  reservation_worker:
+    build: .
+    command: npx tsx src/worker-entry.ts
+    environment:
+      - DATABASE_URL=postgresql://devuser:devpassword@postgres:5432/ticket_orchestrator
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+
   app:
     build: .
     container_name: ticket_api

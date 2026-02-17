@@ -41,9 +41,10 @@ model Seat {
 
 model Reservation {
   id        String   @id @default(uuid())
-  seatId    String
+  seatId    String   @unique //* cannot have 2 Reservations with same Seat id
   seat      Seat     @relation(fields: [seatId], references: [id])
   userId    String
+  user      User     @relation(fields: [userId], references: [id])
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -75,4 +76,11 @@ model Outbox {
   createdAt   DateTime  @default(now())
 
   @@index([processedAt])
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String?
+  reservations Reservation[]
 }

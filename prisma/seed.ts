@@ -1,0 +1,132 @@
+// import { PrismaClient } from "@prisma/client";
+
+// const prisma = new PrismaClient();
+
+// async function main() {
+//   console.log("🌱 Seeding database...");
+
+//   // 1. Create a Test User
+//   const user = await prisma.user.upsert({
+//     where: { id: "user_1" },
+//     update: {},
+//     create: {
+//       id: "user_1",
+//       email: "senior_dev@example.com",
+//       name: "Senior Developer",
+//     },
+//   });
+
+//   // 2. Create an Event
+//   const event = await prisma.event.upsert({
+//     where: { id: "event_1" },
+//     update: {},
+//     create: {
+//       id: "event_1",
+//       title: "System Design Mastery 2026",
+//       startTime: new Date("2026-12-01T20:00:00Z"),
+//     },
+//   });
+
+//   // 3. Create a Seat
+//   await prisma.seat.upsert({
+//     where: { id: "seat_1" },
+//     update: {},
+//     create: {
+//       id: "seat_1",
+//       eventId: event.id,
+//       row: "A-",
+//       number: 1,
+//       status: "AVAILABLE",
+//     },
+//   });
+
+//   console.log("✅ Seeding complete.");
+// }
+
+// main()
+//   .catch((e) => {
+//     console.error(e);
+//     process.exit(1);
+//   })
+//   .finally(async () => {
+//     await prisma.$disconnect();
+//   });
+
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
+import * as dotenv from "dotenv";
+
+// 1. Load environment variables
+dotenv.config();
+
+// 2. Setup the Postgres Connection Pool for the seed script
+const pool = new pg.Pool({
+  connectionString: process.env.DEV_DATABASE_URL,
+});
+
+const adapter = new PrismaPg(pool);
+
+// 3. Instantiate the Client with the adapter
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+  console.log("🌱 Seeding database...");
+
+  // 1. Create  Test Users
+  await prisma.user.upsert({
+    where: { id: "user_1" },
+    update: {},
+    create: {
+      id: "user_1",
+      email: "senior_dev@example.com",
+      name: "Senior Developer",
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { id: "user_2" },
+    update: {},
+    create: {
+      id: "user_2",
+      email: "junior@example.com",
+      name: "Junior Dev",
+    },
+  });
+
+  // 2. Create an Event
+  const event = await prisma.event.upsert({
+    where: { id: "event_1" },
+    update: {},
+    create: {
+      id: "event_1",
+      title: "System Design Mastery 2026",
+      startTime: new Date("2026-12-01T20:00:00Z"),
+    },
+  });
+
+  // 3. Create a Seat
+  await prisma.seat.upsert({
+    where: { id: "seat_1" },
+    update: {},
+    create: {
+      id: "seat_1",
+      eventId: event.id,
+      row: "A-",
+      number: 1,
+      status: "AVAILABLE",
+    },
+  });
+
+  console.log("✅ Seeding complete.");
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+    await pool.end(); // Don't forget to close the pool!
+  });

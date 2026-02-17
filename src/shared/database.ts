@@ -20,11 +20,22 @@ const pool = new pg.Pool({
   max: 20, // Maximum number of clients in the pool
 });
 
+// Add this to catch connection errors specifically from the pool
+pool.on("error", (err) => {
+  console.error("Unexpected error on idle database client", err);
+});
+
 // 2. Connect the Prisma Adapter
 const adapter = new PrismaPg(pool);
 
 // 3. Instantiate the Client with the adapter
 export const prisma = new PrismaClient({ adapter });
+
+// Add a test connection log
+prisma
+  .$connect()
+  .then(() => console.log("✅ Database connected via PrismaPg Adapter"))
+  .catch((err) => console.error("❌ Database connection failed:", err));
 
 // Senior touch: Handle graceful shutdown
 process.on("SIGINT", async () => {

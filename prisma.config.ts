@@ -1,11 +1,15 @@
 // prisma.config.ts
 import { defineConfig } from "@prisma/config";
-import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 export default defineConfig({
   datasource: {
     // For Migration CLI to work
-    url: process.env.DATABASE_URL,
+    url: process.env.DEV_DATABASE_URL,
+  },
+  migrations: {
+    seed: "npx tsx ./prisma/seed.ts",
   },
 });
