@@ -4,7 +4,7 @@ Content-Type: application/json
 {
   "eventId": "event_1",
   "seatId": "seat_1",
-  "userId": "user_2"
+  "userId": "user_1"
 }
 
 

@@ -32,13 +32,17 @@ export const reservationWorker = new Worker(
 );
 
 reservationWorker.on("ready", () => {
-  console.log("✅ Worker is connected and ready to receive jobs");
+  console.log("✅ Reservation Worker is connected and ready to receive jobs");
 });
 
 reservationWorker.on("error", (err) => {
-  console.error("❌ Worker connection error:", err);
+  console.error("❌ Reservation Worker connection error:", err);
 });
 
 reservationWorker.on("failed", (job, err) => {
-  console.error(`❌ Job ${job?.id} failed with error: ${err.message}`);
+  console.error(
+    `❌ Reservation Permanent Failure: Job ${job?.id} could not be processed after ${job?.attemptsMade} attempts.`,
+  );
+  console.error(`Reason: ${err.message}`);
+  // In production, you'd send this to Sentry or Slack here
 });

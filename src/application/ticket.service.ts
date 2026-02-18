@@ -6,7 +6,8 @@ import { prisma } from "@/shared/database";
 const reservationLockTime =
   process.env.NODE_ENV === "test"
     ? Number(process.env.RESERVATION_TTL)
-    : 10 * 60 * 1000;
+    : // : 10 * 60 * 1000;
+      20000;
 
 export const ticketService = {
   async reserveSeat(eventId: string, seatId: string, userId: string) {
@@ -44,8 +45,13 @@ export const ticketService = {
       const jobPayload: ReservationJobData = { seatId, userId, lockKey };
       await reservationQueue.add(`expire-${seatId}`, jobPayload, {
         delay: reservationLockTime,
-        removeOnComplete: true,
-        attempts: 3,
+        removeOnComplete: true, // Keep Redis clean
+        removeOnFail: false, // KEEP failures for debugging!
+        attempts: 5,
+        backoff: {
+          type: "exponential",
+          delay: 2000, // Wait 2s, then 4s, 8s, 16s, 32s...
+        },
       });
 
       return reservation;
