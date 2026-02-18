@@ -3,6 +3,11 @@ import { ReservationJobData } from "@/domain/types/queue";
 import { prisma } from "@/shared/database";
 // ... other imports
 
+const reservationLockTime =
+  process.env.NODE_ENV === "test"
+    ? Number(process.env.RESERVATION_TTL)
+    : 10 * 60 * 1000;
+
 export const ticketService = {
   async reserveSeat(eventId: string, seatId: string, userId: string) {
     const lockKey = `lock:event:${eventId}:seat:${seatId}`;
@@ -31,14 +36,14 @@ export const ticketService = {
         data: {
           seatId,
           userId,
-          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          expiresAt: new Date(Date.now() + reservationLockTime),
         },
       });
 
       // 4. SCHEDULE: Queue the janitor
       const jobPayload: ReservationJobData = { seatId, userId, lockKey };
       await reservationQueue.add(`expire-${seatId}`, jobPayload, {
-        delay: 10 * 60 * 1000,
+        delay: reservationLockTime,
         removeOnComplete: true,
         attempts: 3,
       });
