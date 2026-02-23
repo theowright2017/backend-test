@@ -5,3 +5,7 @@ import { redis } from "@/shared/redis";
 export const reservationQueue = new Queue("reservation-expiry", {
   connection: redis,
 });
+
+export const outboxQueue = new Queue("outbox-transaction", {
+  connection: redis,
+});

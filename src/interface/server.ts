@@ -8,27 +8,6 @@ import "@/infrastructure/queue";
 
 const app = Fastify({ logger: true });
 
-// --- TEMP ROUTE FOR TESTING STEP 2 ---
-// app.post("/reserve", async (request, reply) => {
-//   const { eventId, seatId, userId } = request.body as {
-//     eventId: string;
-//     seatId: string;
-//     userId: string;
-//   };
-
-//   try {
-//     const reservation = await ticketService.reserveSeat(
-//       eventId,
-//       seatId,
-//       userId,
-//     );
-//     return { success: true, reservation };
-//   } catch (error: any) {
-//     //TODO: fix this error: any
-//     return reply.status(400).send({ error: error.message });
-//   }
-// });
-
 // --- THE REGISTRATION ---
 // This tells Fastify: "Take all the routes in ticket.routes and
 // put them behind the /api/v1/tickets path."

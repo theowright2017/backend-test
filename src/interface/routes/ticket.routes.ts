@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifySchema } from "fastify";
 import { ticketService } from "@/application/ticket.service";
+import { prisma } from "@/shared/database";
 
 // Define the TypeScript interface for the body
 interface ReserveSeatBody {
@@ -57,6 +58,69 @@ export async function ticketRoutes(app: FastifyInstance) {
         });
       } catch (error: any) {
         // 4. Handle errors (Seat taken, DB down, etc.)
+        app.log.error("logging error", error);
+        return reply.status(400).send({
+          success: false,
+          error: error.message || "An unexpected error occurred",
+        });
+      }
+    },
+  );
+
+  app.post<{
+    Body: {
+      reservationId: string;
+      idempotencyKey: string;
+    };
+  }>(
+    "/confirm",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["reservationId", "idempotencyKey"],
+          properties: {
+            reservationId: { type: "string" },
+            idempotencyKey: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { reservationId, idempotencyKey } = request.body;
+
+      if (!reservationId || !idempotencyKey) {
+        return reply.status(400).send({
+          error: "Missing required fields: reservationId or idempotencyKey",
+        });
+      }
+
+      try {
+        const order = await ticketService.confirmOrder(
+          reservationId,
+          idempotencyKey,
+        );
+
+        return reply.status(201).send({
+          success: true,
+          message: "Order confirmed",
+          data: order,
+        });
+      } catch (error: any) {
+        // Check if it's a Prisma Unique Constraint error (P2002)
+        if (
+          error.code === "P2002" &&
+          error.meta?.target?.includes("idempotencyKey")
+        ) {
+          const existingOrder = await prisma.order.findUnique({
+            where: { idempotencyKey },
+          });
+          return reply.status(200).send({
+            success: true,
+            message: "Order already confirmed (idempotency)",
+            data: existingOrder,
+          });
+        }
         app.log.error("logging error", error);
         return reply.status(400).send({
           success: false,

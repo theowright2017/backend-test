@@ -20,7 +20,7 @@ services:
     ports:
       - "6379:6379"
 
-  reservation_worker:
+  workers:
     build: .
     command: npx tsx src/worker-entry.ts
     environment:
@@ -38,6 +38,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    environment:
+      - DATABASE_URL=postgresql://devuser:devpassword@postgres:5432/ticket_orchestrator
     env_file:
       - .env
     ports:

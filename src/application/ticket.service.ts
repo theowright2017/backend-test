@@ -6,8 +6,7 @@ import { prisma } from "@/shared/database";
 const reservationLockTime =
   process.env.NODE_ENV === "test"
     ? Number(process.env.RESERVATION_TTL)
-    : // : 10 * 60 * 1000;
-      20000;
+    : 10 * 60 * 1000;
 
 export const ticketService = {
   async reserveSeat(eventId: string, seatId: string, userId: string) {
@@ -56,5 +55,85 @@ export const ticketService = {
 
       return reservation;
     });
+  },
+
+  async confirmOrder(reservationId: string, idempotencyKey: string) {
+    return await prisma.$transaction(async (tx) => {
+      // get res info
+      const reservation = await tx.reservation.findUnique({
+        where: { id: reservationId },
+      });
+
+      if (!reservation) {
+        throw new Error("NO_RESERVATION_FOUND");
+      }
+
+      const seat = await tx.seat.findUnique({
+        where: { id: reservation.seatId },
+      });
+
+      const user = await tx.user.findUnique({
+        where: { id: reservation.userId },
+      });
+
+      if (!seat || seat.status !== "RESERVED") {
+        throw new Error("Seat is no longer reserved or available");
+      } else if (!user) {
+        throw new Error("User not found");
+      }
+
+      // create order
+      const order = await tx.order.create({
+        data: {
+          userId: reservation.userId,
+          totalAmount: 100.0,
+          idempotencyKey: idempotencyKey,
+          items: {
+            create: {
+              seatId: reservation.seatId,
+            },
+          },
+        },
+      });
+
+      // update seat status
+      await tx.seat.update({
+        where: { id: reservation.seatId },
+        data: { status: "SOLD" },
+      });
+
+      // remove reservation
+      await tx.reservation.delete({
+        where: { id: reservation.id },
+      });
+
+      // create outbox transaction
+      await tx.outbox.create({
+        data: {
+          type: "TICKET_PURCHASED",
+          payload: {
+            orderId: order.id,
+            userId: user.id,
+            email: user.email,
+            seatInfo: `${seat.eventId}-${seat.row}-${seat.number}`,
+          },
+        },
+      });
+
+      return order;
+    });
+  },
+
+  sendConfirmationEmail(userId: string, email: string, orderId: string) {
+    if (email.includes("fail")) {
+      console.log("❌ Email confirmation failed");
+      throw new Error();
+    }
+    console.log(
+      "✅  Email confirmation sent to user: ",
+      userId,
+      " to email: ",
+      email,
+    );
   },
 };

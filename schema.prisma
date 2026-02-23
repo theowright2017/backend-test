@@ -15,6 +15,13 @@ enum SeatStatus {
   SOLD
 }
 
+enum OutboxStatus {
+  PENDING
+  QUEUED
+  PROCESSED
+  FAILED
+}
+
 model Event {
   id          String   @id @default(uuid())
   title       String
@@ -32,7 +39,7 @@ model Seat {
   row          String
   number       Int
   status       SeatStatus    @default(AVAILABLE)
-  reservations Reservation[]
+  reservation  Reservation?
   orderItem    OrderItem?
 
   @@unique([eventId, row, number])
@@ -65,13 +72,14 @@ model OrderItem {
   orderId String
   order   Order  @relation(fields: [orderId], references: [id])
   seatId  String @unique
-  seat    Seat   @relation(fields: [seatId], references: [id])
+  seat    Seat   @relation(fields: [seatId], references: [id]) // Singular 'seat'
 }
 
 model Outbox {
   id          String    @id @default(uuid())
   type        String
   payload     Json
+  status      OutboxStatus   @default(PENDING) // PENDING, PROCESSED, QUEUED, FAILED
   processedAt DateTime?
   createdAt   DateTime  @default(now())
 

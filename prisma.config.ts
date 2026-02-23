@@ -7,7 +7,7 @@ dotenv.config();
 export default defineConfig({
   datasource: {
     // For Migration CLI to work
-    url: process.env.DEV_DATABASE_URL,
+    url: process.env.DATABASE_URL,
   },
   migrations: {
     seed: "npx tsx ./prisma/seed.ts",

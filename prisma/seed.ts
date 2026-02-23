@@ -1,68 +1,23 @@
-// import { PrismaClient } from "@prisma/client";
-
-// const prisma = new PrismaClient();
-
-// async function main() {
-//   console.log("🌱 Seeding database...");
-
-//   // 1. Create a Test User
-//   const user = await prisma.user.upsert({
-//     where: { id: "user_1" },
-//     update: {},
-//     create: {
-//       id: "user_1",
-//       email: "senior_dev@example.com",
-//       name: "Senior Developer",
-//     },
-//   });
-
-//   // 2. Create an Event
-//   const event = await prisma.event.upsert({
-//     where: { id: "event_1" },
-//     update: {},
-//     create: {
-//       id: "event_1",
-//       title: "System Design Mastery 2026",
-//       startTime: new Date("2026-12-01T20:00:00Z"),
-//     },
-//   });
-
-//   // 3. Create a Seat
-//   await prisma.seat.upsert({
-//     where: { id: "seat_1" },
-//     update: {},
-//     create: {
-//       id: "seat_1",
-//       eventId: event.id,
-//       row: "A-",
-//       number: 1,
-//       status: "AVAILABLE",
-//     },
-//   });
-
-//   console.log("✅ Seeding complete.");
-// }
-
-// main()
-//   .catch((e) => {
-//     console.error(e);
-//     process.exit(1);
-//   })
-//   .finally(async () => {
-//     await prisma.$disconnect();
-//   });
-
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import * as dotenv from "dotenv";
 
-// 1. Load environment variables
-dotenv.config();
+if (!process.env.DATABASE_URL) {
+  dotenv.config();
+}
+
+console.log("DEBUG: Using Connection String:", process.env.DATABASE_URL);
+
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("DATABASE_URL is not defined in the environment");
+}
 
 // 2. Setup the Postgres Connection Pool for the seed script
 const pool = new pg.Pool({
-  connectionString: process.env.DEV_DATABASE_URL,
+  connectionString: connectionString,
 });
 
 const adapter = new PrismaPg(pool);
@@ -85,12 +40,12 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { id: "user_2" },
+    where: { id: "fail_user" },
     update: {},
     create: {
-      id: "user_2",
-      email: "junior@example.com",
-      name: "Junior Dev",
+      id: "fail_user",
+      email: "junior@fail.com",
+      name: "I will fail email conf.",
     },
   });
 
