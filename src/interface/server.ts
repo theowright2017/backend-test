@@ -6,8 +6,11 @@ import { registerSocketLayer } from "@/infrastructure/socket";
 
 // Importing this file starts the BullMQ Worker immediately
 import "@/infrastructure/queue";
+import { rateLimitHook } from "./rateLimiter";
 
 const app = Fastify({ logger: true });
+
+app.addHook("preHandler", rateLimitHook);
 
 // --- THE REGISTRATION ---
 // This tells Fastify: "Take all the routes in ticket.routes and

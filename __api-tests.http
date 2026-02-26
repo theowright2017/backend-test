@@ -3,7 +3,7 @@ Content-Type: application/json
 
 {
   "eventId": "event_1",
-  "seatId": "seat_1",
+  "seatId": "A-1",
   "userId": "user_1"
 }
 
@@ -14,6 +14,6 @@ post http://localhost:3000/api/v1/tickets/confirm
 Content-Type: application/json
 
 {
-  "reservationId": "9a109fa4-f0da-414e-b208-42ff941404a1",
-  "idempotencyKey": "uniqKey_1"
+  "reservationId": "d5dc83da-36c1-410f-abff-12e29c22a977",
+  "idempotencyKey": "uniqKey_500"
 }
