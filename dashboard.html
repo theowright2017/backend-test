@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Ticketmaster God-View</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-900 text-white p-10">
+    <h1 class="text-3xl font-bold mb-6">Live Event Seat Map</h1>
+
+    <div class="flex gap-4 mb-8">
+      <div class="flex items-center">
+        <div class="w-4 h-4 bg-green-500 mr-2"></div>
+        Available
+      </div>
+      <div class="flex items-center">
+        <div class="w-4 h-4 bg-yellow-500 mr-2"></div>
+        Pending (10m Lock)
+      </div>
+      <div class="flex items-center">
+        <div class="w-4 h-4 bg-red-500 mr-2"></div>
+        Sold
+      </div>
+    </div>
+
+    <div
+      id="map"
+      class="grid grid-cols-5 gap-2 w-max bg-gray-800 p-4 rounded-lg"
+    ></div>
+
+    <script>
+      const socket = io("http://localhost:3000");
+      const map = document.getElementById("map");
+      const seats = {};
+
+      function renderSeat(seatId, status, userId) {
+        let el = seats[seatId];
+
+        if (!el) {
+          el = document.createElement("div");
+          el.id = `seat-${seatId}`;
+          el.className =
+            "w-10 h-10 bg-green-500 rounded flex items-center justify-center text-[8px] font-bold transition-all duration-500";
+          el.innerText = seatId.slice(0, 4); // shorten UUID for readability
+          map.appendChild(el);
+          seats[seatId] = el;
+        }
+
+        el.classList.remove(
+          "bg-green-500",
+          "bg-yellow-500",
+          "bg-red-500",
+          "animate-pulse",
+        );
+
+        if (status === "PENDING") {
+          el.classList.add("bg-yellow-500");
+        } else if (status === "SOLD") {
+          el.classList.add("bg-red-500");
+        } else if (status === "AVAILABLE") {
+          el.classList.add("bg-green-500");
+        }
+      }
+
+      // 1. Handle initial snapshot from the server
+      socket.on("INITIAL_STATE", (state) => {
+        console.log("Initial state:", state);
+        map.innerHTML = "";
+        Object.keys(seats).forEach((k) => delete seats[k]);
+
+        state.forEach(({ seatId, status }) => {
+          renderSeat(seatId, status);
+        });
+      });
+
+      // 2. Handle incremental seat updates
+      socket.on("SEAT_UPDATED", (data) => {
+        console.log("Update received:", data);
+        if (!data.seatId || !data.status) return;
+        renderSeat(data.seatId, data.status, data.userId);
+      });
+
+      // 3. Join a specific event room once connected
+      socket.on("connect", () => {
+        console.log("Connected to Live Edge!");
+        const eventId = "event_1"; // replace with a real event id
+        console.log("Joining", `event_${eventId}`);
+        socket.emit("join-event", eventId);
+      });
+    </script>
+  </body>
+</html>

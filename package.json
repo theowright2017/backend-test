@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --import tsx --watch src/interface/server.ts",
     "build": "tsc",
-    "start": "node dist/interface/server.js"
+    "start": "node dist/interface/server.js",
+    "seed": "docker compose exec workers sh -c 'npx prisma db seed'"
   },
   "repository": {
     "type": "git",
@@ -27,6 +28,7 @@
     "@prisma/client": "^7.4.0",
     "bullmq": "^5.69.3",
     "fastify": "^5.7.4",
+    "fastify-socket.io": "^5.1.0",
     "ioredis": "^5.9.3",
     "pg": "^8.18.0",
     "pino": "^10.3.1",

@@ -1,66 +1,103 @@
 import { reservationQueue } from "@/infrastructure/queue";
 import { ReservationJobData } from "@/domain/types/queue";
 import { prisma } from "@/shared/database";
-// ... other imports
+import { redis } from "@/shared/redis";
 
 const reservationLockTime =
   process.env.NODE_ENV === "test"
-    ? Number(process.env.RESERVATION_TTL)
-    : 10 * 60 * 1000;
+    ? parseInt(process.env.RESERVATION_TEST_TTL ?? "")
+    : parseInt(process.env.RESERVATION_TTL ?? "") * 6;
 
 export const ticketService = {
   async reserveSeat(eventId: string, seatId: string, userId: string) {
-    const lockKey = `lock:event:${eventId}:seat:${seatId}`;
+    // --- STEP 1: THE REDIS SHIELD ---
+    const lockKey = `lock:seat:${seatId}`;
+    const locked = await redis.set(
+      lockKey,
+      userId,
+      "PX",
+      reservationLockTime,
+      "NX",
+    );
 
-    return await prisma.$transaction(async (tx) => {
-      // 1. FAIL FAST: Find the seat first and check status
-      // Senior Note: In a high-concurrency app, we'd use a 'SELECT FOR UPDATE' here
-      const seat = await tx.seat.findUnique({
+    if (!locked) {
+      throw new Error("SEAT_IS_BEING_PURCHASED_BY_ANOTHER_USER");
+    }
+    try {
+      // --- STEP 2: THE DATABASE SOURCE OF TRUTH ---
+      const reservationProcess = await prisma.$transaction(async (tx) => {
+        // 1. FAIL FAST: Find the seat first and check status
+        // Senior Note: In a high-concurrency app, we'd use a 'SELECT FOR UPDATE' here
+        const seat = await tx.seat.findUnique({
+          where: { id: seatId },
+        });
+
+        if (!seat || seat.status !== "AVAILABLE") {
+          throw new Error("SEAT_NOT_AVAILABLE");
+          // This rollback ensures no reservation record is created
+        }
+
+        // 2. ACT: Update the seat status FIRST
+        // This effectively "claims" the seat for this transaction
+        await tx.seat.update({
+          where: { id: seatId },
+          data: { status: "RESERVED" },
+        });
+
+        // 3. RECORD: Create the reservation now that we know we own the seat
+        const reservation = await tx.reservation.create({
+          data: {
+            seatId,
+            userId,
+            expiresAt: new Date(Date.now() + reservationLockTime),
+          },
+        });
+
+        // 4. SCHEDULE: Queue the janitor
+        const jobPayload: ReservationJobData = { seatId, userId, lockKey };
+        await reservationQueue.add(`expire-${seatId}`, jobPayload, {
+          delay: reservationLockTime,
+          removeOnComplete: true, // Keep Redis clean
+          removeOnFail: false, // KEEP failures for debugging!
+          attempts: 5,
+          backoff: {
+            type: "exponential",
+            delay: 2000, // Wait 2s, then 4s, 8s, 16s, 32s...
+          },
+        });
+
+        return reservation;
+      });
+      console.log("------ after res process");
+      // --- STEP 3: SUCCESS BROADCAST ---
+      const seat = await prisma.seat.findUnique({
         where: { id: seatId },
       });
 
-      if (!seat || seat.status !== "AVAILABLE") {
-        throw new Error("SEAT_NOT_AVAILABLE");
-        // This rollback ensures no reservation record is created
-      }
+      await redis.publish(
+        `events:${eventId}:seats`,
+        JSON.stringify({
+          type: "SEAT_UPDATED",
+          status: "PENDING",
+          seatId: `${seat?.row}${seat?.number}`,
+          userId: userId,
+        }),
+      );
 
-      // 2. ACT: Update the seat status FIRST
-      // This effectively "claims" the seat for this transaction
-      await tx.seat.update({
-        where: { id: seatId },
-        data: { status: "RESERVED" },
-      });
-
-      // 3. RECORD: Create the reservation now that we know we own the seat
-      const reservation = await tx.reservation.create({
-        data: {
-          seatId,
-          userId,
-          expiresAt: new Date(Date.now() + reservationLockTime),
-        },
-      });
-
-      // 4. SCHEDULE: Queue the janitor
-      const jobPayload: ReservationJobData = { seatId, userId, lockKey };
-      await reservationQueue.add(`expire-${seatId}`, jobPayload, {
-        delay: reservationLockTime,
-        removeOnComplete: true, // Keep Redis clean
-        removeOnFail: false, // KEEP failures for debugging!
-        attempts: 5,
-        backoff: {
-          type: "exponential",
-          delay: 2000, // Wait 2s, then 4s, 8s, 16s, 32s...
-        },
-      });
-
-      return reservation;
-    });
+      return reservationProcess;
+    } catch (error) {
+      // --- STEP 4: ERROR CLEANUP ---
+      // If the DB transaction fails (e.g., credit card declined),
+      // we must release the lock so others can try.
+      await redis.del(lockKey);
+      throw error;
+    }
   },
 
   async confirmOrder(reservationId: string, idempotencyKey: string) {
-    return await prisma.$transaction(async (tx) => {
+    const orderInfo = await prisma.$transaction(async (tx) => {
       // get res info
-      const reservation = await tx.reservation.findUnique({
+      const reservation = await tx.reservation.findFirst({
         where: { id: reservationId },
       });
 
@@ -120,8 +157,31 @@ export const ticketService = {
         },
       });
 
-      return order;
+      return {
+        order,
+        seatId: reservation.seatId,
+        eventId: seat.eventId,
+        userId: order.userId,
+      };
     });
+
+    // DELETE LOCK
+    await redis.del(`lock:seat:${orderInfo.seatId}`);
+
+    // BROADCAST
+    // This ensures we only broadcast if the DB actually saved the changes
+    const channel = `events:${orderInfo.eventId}:seats`;
+    const message = JSON.stringify({
+      type: "SEAT_UPDATED",
+      seatId: orderInfo.seatId,
+      status: "SOLD",
+      timestamp: new Date().toISOString(),
+      userId: orderInfo.userId,
+    });
+
+    await redis.publish(channel, message);
+
+    return orderInfo.order;
   },
 
   sendConfirmationEmail(userId: string, email: string, orderId: string) {

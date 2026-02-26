@@ -60,18 +60,24 @@ async function main() {
     },
   });
 
-  // 3. Create a Seat
-  await prisma.seat.upsert({
-    where: { id: "seat_1" },
-    update: {},
-    create: {
-      id: "seat_1",
-      eventId: event.id,
-      row: "A-",
-      number: 1,
-      status: "AVAILABLE",
-    },
-  });
+  const rows = ["A", "B", "C", "D", "E"];
+  const seatNumbers = [1, 2, 3, 4, 5];
+
+  for (const row of rows) {
+    for (const seatNumber of seatNumbers) {
+      await prisma.seat.upsert({
+        where: { id: `${row}-${seatNumber}` },
+        update: {},
+        create: {
+          id: `${row}-${seatNumber}`,
+          eventId: event.id,
+          row: `${row}-`,
+          number: seatNumber,
+          status: "AVAILABLE",
+        },
+      });
+    }
+  }
 
   console.log("✅ Seeding complete.");
 }

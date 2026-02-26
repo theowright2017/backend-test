@@ -15,7 +15,7 @@ export default defineConfig({
         "postgresql://devuser:devpassword@localhost:5432/ticket_orchestrator?schema=public",
       REDIS_URL: "redis://localhost:6379",
       NODE_ENV: "test",
-      RESERVATION_TTL: "1000",
+      RESERVATION_TEST_TTL: "1000",
     },
     // // Load the test env specifically
     // env: dotenv.config({ path: ".env.test" }).parsed,

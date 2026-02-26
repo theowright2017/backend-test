@@ -10,6 +10,11 @@ export const redis = new Redis(
   },
 );
 
+// Enable Keyspace Notifications in Redis
+redis.config("SET", "notify-keyspace-events", "Ex").then(() => {
+  console.log("✅ Redis Keyspace Notifications enabled (Expiry)");
+});
+
 redis.on("error", (error) => {
   console.error("Redis connection error:", error);
 });

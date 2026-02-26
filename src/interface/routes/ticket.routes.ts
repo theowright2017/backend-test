@@ -124,7 +124,7 @@ export async function ticketRoutes(app: FastifyInstance) {
         app.log.error("logging error", error);
         return reply.status(400).send({
           success: false,
-          error: error.message || "An unexpected error occurred",
+          error: error.message + " - An unexpected error occurred",
         });
       }
     },

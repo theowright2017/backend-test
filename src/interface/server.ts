@@ -2,8 +2,9 @@ import Fastify from "fastify";
 import { prisma } from "@/shared/database";
 import { redis } from "@/shared/redis";
 import { ticketRoutes } from "./routes/ticket.routes";
+import { registerSocketLayer } from "@/infrastructure/socket";
 
-// Senior Note: Importing this file starts the BullMQ Worker immediately
+// Importing this file starts the BullMQ Worker immediately
 import "@/infrastructure/queue";
 
 const app = Fastify({ logger: true });
@@ -22,8 +23,13 @@ const start = async () => {
     await redis.ping();
     console.log("✅ Redis connected");
 
+    // Web Socket
+    await registerSocketLayer(app);
+
     await app.listen({ port: 3000, host: "0.0.0.0" });
-    console.log("🚀 Server running on http://localhost:3000");
+    console.log(
+      "🚀 Server running on http://localhost:3000, Janitor socket listening ",
+    );
   } catch (err) {
     app.log.error(err);
     process.exit(1);
